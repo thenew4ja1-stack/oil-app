@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>Oil Change App</title>
+
+<style>
+body {font-family:sans-serif;background:#0f172a;color:#e2e8f0;margin:0;}
+.container{max-width:900px;margin:auto;padding:20px;}
+.card{background:#1e293b;padding:20px;margin-top:15px;border-radius:12px;}
+input,select{padding:10px;margin:5px;border-radius:8px;border:none;background:#334155;color:white;}
+button{padding:10px 15px;background:#38bdf8;border:none;border-radius:6px;cursor:pointer;}
+table{width:100%;margin-top:15px;border-collapse:collapse;}
+td,th{padding:10px;text-align:center;border-bottom:1px solid #334155;}
+th{color:#38bdf8;}
+.btn-del{background:red;color:white;}
+.alert{background:#ef4444;padding:10px;border-radius:8px;margin-top:10px;}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>🛢️ Oil Change System</h2>
+
+<div id="alertBox"></div>
+
+<div class="card">
+<input id="car" placeholder="ชื่อรถ">
+<input id="liter" type="number" placeholder="กี่ลิตร">
+<input id="oilName" placeholder="ชื่อน้ำมันเครื่อง">
+<input id="km" type="number" placeholder="เปลี่ยนที่กิโล">
+<input id="nextKm" type="number" placeholder="รอบถัดไป (เช่น 5000)">
+<input type="date" id="date">
+<button onclick="add()">💾 บันทึก</button>
+</div>
+
+<div class="card">
+<table>
+<thead>
+<tr>
+<th>วันที่</th>
+<th>รถ</th>
+<th>ลิตร</th>
+<th>น้ำมัน</th>
+<th>กม.</th>
+<th>ครั้งถัดไป</th>
+<th>ลบ</th>
+</tr>
+</thead>
+<tbody id="table"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+let db = JSON.parse(localStorage.getItem("oilAppDB")) || [];
+
+function init(){
+    date.valueAsDate = new Date();
+    render();
+}
+
+function save(){
+    localStorage.setItem("oilAppDB", JSON.stringify(db));
+}
+
+function add(){
+    let obj = {
+        car: car.value,
+        liter: +liter.value,
+        oil: oilName.value,
+        km: +km.value,
+        next: +nextKm.value,
+        date: date.value
+    };
+
+    db.push(obj);
+    save();
+    render();
+
+    car.value="";
+    liter.value="";
+    oilName.value="";
+    km.value="";
+    nextKm.value="";
+}
+
+function del(i){
+    db.splice(i,1);
+    save();
+    render();
+}
+
+function render(){
+    table.innerHTML="";
+
+    db.forEach((d,i)=>{
+        table.innerHTML += `
+        <tr>
+        <td>${d.date}</td>
+        <td>${d.car}</td>
+        <td>${d.liter}</td>
+        <td>${d.oil}</td>
+        <td>${d.km}</td>
+        <td>${d.next}</td>
+        <td><button class="btn-del" onclick="del(${i})">ลบ</button></td>
+        </tr>`;
+    });
+
+    checkAlert();
+}
+
+function checkAlert(){
+    if(db.length === 0) return;
+
+    let last = db[db.length-1];
+    let currentKm = last.km; // ใช้ค่าที่กรอกล่าสุด
+
+    if(currentKm >= last.km + last.next){
+        alertBox.innerHTML = `<div class="alert">⚠️ ถึงเวลาเปลี่ยนน้ำมันเครื่อง</div>`;
+    } else {
+        alertBox.innerHTML = "";
+    }
+}
+
+init();
+</script>
+
+</body>
+</html>
