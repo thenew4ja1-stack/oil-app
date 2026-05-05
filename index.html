@@ -14,6 +14,7 @@ table{width:100%;margin-top:15px;border-collapse:collapse;}
 td,th{padding:10px;text-align:center;border-bottom:1px solid #334155;}
 th{color:#38bdf8;}
 .btn-del{background:red;color:white;}
+.btn-edit{background:orange;color:white;}
 .alert{background:#ef4444;padding:10px;border-radius:8px;margin-top:10px;}
 </style>
 </head>
@@ -30,12 +31,18 @@ th{color:#38bdf8;}
 <input id="liter" type="number" placeholder="กี่ลิตร">
 <input id="oilName" placeholder="ชื่อน้ำมันเครื่อง">
 <input id="km" type="number" placeholder="เปลี่ยนที่กิโล">
-<input id="nextKm" type="number" placeholder="รอบถัดไป (เช่น 5000)">
+<input id="nextKm" type="number" placeholder="ระยะ (เช่น 5000)">
 <input type="date" id="date">
+
+<br>
+<input id="currentKm" type="number" placeholder="กิโลปัจจุบัน" oninput="checkAlert()">
+
 <button onclick="add()">💾 บันทึก</button>
 </div>
 
 <div class="card">
+<select id="filterCar" onchange="render();checkAlert()"></select>
+
 <table>
 <thead>
 <tr>
@@ -44,8 +51,8 @@ th{color:#38bdf8;}
 <th>ลิตร</th>
 <th>น้ำมัน</th>
 <th>กม.</th>
-<th>ครั้งถัดไป</th>
-<th>ลบ</th>
+<th>ถึงรอบ</th>
+<th>จัดการ</th>
 </tr>
 </thead>
 <tbody id="table"></tbody>
@@ -56,9 +63,11 @@ th{color:#38bdf8;}
 
 <script>
 let db = JSON.parse(localStorage.getItem("oilAppDB")) || [];
+let editIndex = -1;
 
 function init(){
     date.valueAsDate = new Date();
+    renderCarList();
     render();
 }
 
@@ -73,30 +82,75 @@ function add(){
         oil: oilName.value,
         km: +km.value,
         next: +nextKm.value,
+        nextTotal: +km.value + +nextKm.value,
         date: date.value
     };
 
-    db.push(obj);
+    if(editIndex === -1){
+        db.push(obj);
+    } else {
+        db[editIndex] = obj;
+        editIndex = -1;
+    }
+
     save();
     render();
+    renderCarList();
+    resetForm();
+}
 
+function resetForm(){
     car.value="";
-    liter.value="";
+    liter.value=0;
     oilName.value="";
-    km.value="";
-    nextKm.value="";
+    km.value=0;
+    nextKm.value=0;
 }
 
 function del(i){
     db.splice(i,1);
     save();
     render();
+    renderCarList();
+}
+
+function edit(i){
+    let d = db[i];
+
+    car.value = d.car;
+    liter.value = d.liter;
+    oilName.value = d.oil;
+    km.value = d.km;
+    nextKm.value = d.next;
+    date.value = d.date;
+
+    editIndex = i;
+}
+
+function renderCarList(){
+    let cars = [...new Set(db.map(d => d.car))];
+
+    let html = `<option value="">-- เลือกรถ --</option>`;
+    cars.forEach(c=>{
+        html += `<option value="${c}">${c}</option>`;
+    });
+
+    filterCar.innerHTML = html;
 }
 
 function render(){
     table.innerHTML="";
 
-    db.forEach((d,i)=>{
+    let selectedCar = filterCar.value;
+    let data = db;
+
+    if(selectedCar){
+        data = db.filter(d => d.car === selectedCar);
+    }
+
+    data.sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+    data.forEach((d,i)=>{
         table.innerHTML += `
         <tr>
         <td>${d.date}</td>
@@ -104,22 +158,28 @@ function render(){
         <td>${d.liter}</td>
         <td>${d.oil}</td>
         <td>${d.km}</td>
-        <td>${d.next}</td>
-        <td><button class="btn-del" onclick="del(${i})">ลบ</button></td>
+        <td>${d.nextTotal}</td>
+        <td>
+            <button class="btn-edit" onclick="edit(${i})">✏️</button>
+            <button class="btn-del" onclick="del(${i})">ลบ</button>
+        </td>
         </tr>`;
     });
-
-    checkAlert();
 }
 
 function checkAlert(){
-    if(db.length === 0) return;
+    let selectedCar = filterCar.value;
+    let current = +currentKm.value;
 
-    let last = db[db.length-1];
-    let currentKm = last.km; // ใช้ค่าที่กรอกล่าสุด
+    if(!selectedCar || !current) return;
 
-    if(currentKm >= last.km + last.next){
-        alertBox.innerHTML = `<div class="alert">⚠️ ถึงเวลาเปลี่ยนน้ำมันเครื่อง</div>`;
+    let carData = db.filter(d => d.car === selectedCar);
+    if(carData.length === 0) return;
+
+    let last = carData[carData.length-1];
+
+    if(current >= last.nextTotal){
+        alertBox.innerHTML = `<div class="alert">⚠️ ถึงเวลาเปลี่ยนน้ำมัน (${selectedCar})</div>`;
     } else {
         alertBox.innerHTML = "";
     }
